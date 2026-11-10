@@ -1,0 +1,8 @@
+# Efor verisi ve Plane çekimleri hiçbir zaman repoya girmez (repo herkese açık).
+veri/
+__pycache__/
+*.pyc
+.env*
+site/
+.venv/
+kisiler.json
