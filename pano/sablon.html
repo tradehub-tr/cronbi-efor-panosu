@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="__CSP__">
+<meta name="referrer" content="no-referrer">
+<title>Ekip Puantajı</title>
+<style>
+__YAZI__
+  /* Yerleşim: resmi hak ediş dökümü — form başlığı + kesinleşme mührü, altında puantaj cetveli
+     (satır = kişi, sütun = iş günü, üstte ekip yoğunluğu), satır yerinde açılıp kişinin dökümü olur. */
+  :root {
+    --bg:#E9EDF2; --paper:#FBFCFD; --ink:#111D33; --muted:#59647A; --rule:#D3DAE3; --grid:rgba(17,29,51,.045);
+    --wash:#EEF2F7; --accent:#1F49C7; --stamp:#B42318;
+    --warn:#A15C07; --warn-bg:#FBEFD5; --ok:#17703A; --toplanti:#6B7686; --gelistirme:#3559A8;
+    --display:"Archivo", "Arial Narrow", system-ui, sans-serif;
+    --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0A1019; --paper:#121A26; --ink:#E5EAF2; --muted:#97A2B4; --rule:#273345; --grid:rgba(229,234,242,.035);
+    --wash:#192333; --accent:#8AABFF; --stamp:#FF7A6B;
+    --warn:#F2B451; --warn-bg:#3A2B12; --ok:#5ED38E; --toplanti:#9EABBB; --gelistirme:#8AABFF; color-scheme:dark; } }
+  :root[data-theme="dark"] {
+    --bg:#0A1019; --paper:#121A26; --ink:#E5EAF2; --muted:#97A2B4; --rule:#273345; --grid:rgba(229,234,242,.035);
+    --wash:#192333; --accent:#8AABFF; --stamp:#FF7A6B;
+    --warn:#F2B451; --warn-bg:#3A2B12; --ok:#5ED38E; --toplanti:#9EABBB; --gelistirme:#8AABFF; color-scheme:dark; }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:400 1rem/1.5 var(--body); -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:76rem; margin:0 auto; padding-block:2rem 4rem; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
+  button, select { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .num { font-variant-numeric:tabular-nums; }
+  .c-toplanti{--c:var(--toplanti)} .c-gelistirme{--c:var(--gelistirme)}
+
+
+  /* belge */
+  .doc { background:var(--paper); background-image:linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size:18px 18px;
+         border:1px solid var(--rule); border-radius:6px; box-shadow:0 1px 0 var(--rule), 0 18px 40px -28px rgba(17,29,51,.35); }
+  .doc-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1.5rem 2rem; align-items:start; padding:2rem 2rem 1.5rem; }
+  .eyebrow { display:flex; flex-wrap:wrap; gap:.25rem .9rem; font:600 .72rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:.9rem; }
+  h1 { font:800 clamp(3rem, 8.5vw, 6.2rem)/.86 var(--display); font-stretch:66%; letter-spacing:-.01em; margin:0; }
+  h1 span { color:var(--muted); font-weight:500; }
+  .tools { display:flex; gap:.5rem; margin-top:1.4rem; }
+  .tools select, .btn { height:2.4rem; border:1px solid var(--rule); background:var(--paper); border-radius:5px; padding:0 .8rem; cursor:pointer; }
+  .btn:hover, .tools select:hover { border-color:var(--ink); }
+
+  .stamp { --s:var(--stamp); justify-self:end; margin-top:.4rem; transform:rotate(-7deg); color:var(--s); border:3px solid var(--s); border-radius:8px; padding:.35rem .9rem .45rem; text-align:center;
+           box-shadow:inset 0 0 0 2px var(--paper), inset 0 0 0 3.5px var(--s); font-family:var(--mono); text-transform:uppercase; opacity:.9; }
+  .stamp b { display:block; font:700 1.5rem/1.1 var(--display); font-stretch:75%; letter-spacing:.08em; }
+  .stamp small { font-size:.7rem; letter-spacing:.1em; font-weight:500; }
+  .stamp.live { --s:var(--warn); }
+
+  .form { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); border-top:1px solid var(--ink); border-bottom:1px solid var(--ink); }
+  .form > div { padding:.8rem 2rem .9rem; border-left:1px solid var(--rule); }
+  .form > div:first-child { border-left:0; }
+  .form dt { font:600 .66rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:.45rem; }
+  .form dd { margin:0; font:700 1.55rem/1 var(--display); font-stretch:80%; }
+  .form dd small { font:400 .85rem var(--body); color:var(--muted); margin-left:.2rem; }
+  .form dd.flag { color:var(--warn); }
+
+  /* puantaj cetveli */
+  .row { display:grid; grid-template-columns:11rem minmax(0,1fr) 7.5rem 2rem; align-items:center; gap:0 1.25rem; padding:.85rem 2rem; border-top:1px solid var(--rule); }
+  .row.head { border-top:0; padding-block:1.4rem .4rem; font:600 .66rem/1.15 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); align-items:end; }
+  .row.load { border-top:0; padding-block:0 .6rem; align-items:end; }
+  .row.load .lbl { font:500 .7rem/1.2 var(--body); color:var(--muted); }
+  .row.person { cursor:pointer; background:transparent; border-left:0; border-right:0; border-bottom:0; width:100%; text-align:left; transition:background-color .12s; }
+  .row.person:hover, .row.person[aria-expanded="true"] { background:var(--wash); }
+  .who { font:600 1.08rem/1.2 var(--body); display:flex; flex-direction:column; gap:.2rem; min-width:0; }
+  .who small { font:500 .78rem/1.2 var(--body); color:var(--muted); }
+  .who small.flag { color:var(--warn); }
+  .days { display:grid; grid-template-columns:repeat(21, minmax(0,1fr)); gap:3px; }
+  .days > * { min-width:0; }
+  .days .wk { margin-left:8px; }
+  .dh { text-align:center; font:600 .74rem/1.1 var(--body); color:var(--ink); letter-spacing:0; text-transform:none; }
+  .dh small { display:block; font:400 .6rem/1.3 var(--body); color:var(--muted); }
+  .future { opacity:.3; }
+  .dh.we { color:var(--muted); font-weight:500; }
+  .cell.we { background:repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 4%, transparent) 0 3px, transparent 3px 6px); }
+  .bar.we i { opacity:.1; }
+  .bar { height:1.6rem; display:flex; align-items:flex-end; }
+  .bar i { display:block; width:100%; background:var(--ink); opacity:.18; border-radius:2px 2px 0 0; }
+  .cell { height:1.9rem; border-radius:2px; background:color-mix(in srgb, var(--ink) 6%, transparent); display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+  .cell i { flex:1; background:var(--c); }
+  .cell i.out { background:repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 5px); }
+  .cell i.wait { background:transparent; border:2px dotted var(--c); border-radius:2px; }
+  .slot { display:inline-block; width:3.4rem; height:1.15rem; border:1.5px dotted var(--muted); border-radius:3px; vertical-align:middle; }
+  tr.bos td { color:var(--muted); }
+  .sum { display:flex; flex-direction:column; align-items:flex-end; gap:.35rem; }
+  .sum b { font:700 1.7rem/1 var(--display); font-stretch:76%; }
+  .sum b small { font:400 .8rem var(--body); color:var(--muted); margin-left:.2rem; }
+  .meter { width:100%; height:4px; background:color-mix(in srgb, var(--ink) 10%, transparent); border-radius:2px; overflow:hidden; }
+  .meter i { display:block; height:100%; background:var(--ink); }
+  .chev { color:var(--muted); font-size:1.2rem; text-align:right; transition:transform .15s; }
+  [aria-expanded="true"] .chev { transform:rotate(90deg); }
+
+  /* döküm */
+  .ledger { border-top:1px solid var(--rule); padding:1.6rem 2rem 1.8rem 14.25rem; background:var(--paper); }
+  .ledger[hidden] { display:none; }
+  .lg-title { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.5rem 1rem; align-items:baseline; margin:0 0 .9rem; }
+  .lg-title b { font:700 1.2rem/1.2 var(--display); font-stretch:85%; }
+  .lg-title span { font:500 .72rem/1 var(--mono); color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+  .lg-scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.93rem; }
+  th { text-align:left; font:600 .64rem/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:.5rem .5rem; border-bottom:1px solid var(--ink); }
+  td { padding:.55rem .5rem; border-bottom:1px solid var(--rule); vertical-align:top; }
+  td.code { font:500 .8rem/1.55 var(--mono); color:var(--muted); white-space:nowrap; }
+  td.r, th.r { text-align:right; white-space:nowrap; }
+  .cat { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; color:var(--muted); }
+  .cat::before { content:""; width:.55rem; height:.55rem; border-radius:2px; background:var(--c); }
+  .size { font:600 .72rem/1 var(--mono); border:1px solid var(--ink); border-radius:3px; padding:.18rem .35rem; }
+  .note { display:block; font-size:.8rem; color:var(--warn); }
+  .sub2 { display:block; font-size:.8rem; color:var(--muted); }
+  tr.sub td { border-bottom:0; padding-top:1.2rem; font:600 .64rem/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  tr.out td { color:var(--muted); }
+  tr.total td { border-bottom:3px double var(--ink); border-top:1px solid var(--ink); font:700 1.05rem/1.2 var(--body); padding-block:.75rem; }
+  .colophon { margin-top:.8rem; font:400 .72rem/1.5 var(--mono); color:var(--muted); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:.4rem 1.3rem; padding:1rem 2rem 1.2rem; border-top:1px solid var(--ink); font-size:.82rem; color:var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:.4rem; }
+  .legend span::before { content:""; width:.7rem; height:.7rem; border-radius:2px; background:var(--c); }
+  .legend .hatch::before { background:repeating-linear-gradient(135deg, var(--muted) 0 2px, transparent 2px 5px); }
+  .uyari { border-top:1px solid var(--ink); padding:1.1rem 2rem 1.2rem; }
+  .uyari[hidden] { display:none; }
+  .uyari h3 { font:600 .66rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--warn); margin:0 0 .7rem; }
+  .uyari ul { list-style:none; margin:0; padding:0; display:grid; gap:.4rem; font-size:.9rem; }
+  .uyari li { display:grid; grid-template-columns:7.5rem minmax(0,1fr); gap:.75rem; }
+  .uyari code { font:500 .8rem/1.5 var(--mono); color:var(--muted); }
+  td.bagli { color:var(--muted); }
+  .gorev-ad { display:inline-flex; align-items:baseline; gap:.45rem; }
+  .gorev-ad .cat { flex:none; }
+  .legend .meterk::before { width:1.2rem; height:4px; background:var(--ink); }
+  .legend .waitk::before { background:transparent; border:2px dotted var(--muted); }
+
+  /* hesap kuralları: belgeyle aynı kenarlar, üç eşit sütun */
+  .rules { margin-top:1.25rem; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .rules > div { padding:1.4rem 2rem 1.6rem; border-left:1px solid var(--rule); min-width:0; }
+  .rules > div:first-child { border-left:0; }
+  .rules h2 { font:600 .66rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 .8rem; }
+  .rules p { margin:0; font-size:.95rem; }
+  .rules ol { margin:0; padding:0; list-style:none; display:grid; gap:.45rem; font-size:.95rem; counter-reset:k; }
+  .rules ol li { display:grid; grid-template-columns:1.4rem 1fr; counter-increment:k; }
+  .rules ol li::before { content:counter(k); font:600 .75rem/1.6 var(--mono); color:var(--muted); }
+  .rules table { font-size:.92rem; }
+  .rules td, .rules th { padding:.35rem .4rem; }
+  .rules tfoot td { border-bottom:0; color:var(--muted); font-size:.8rem; padding-top:.6rem; }
+
+  /* ay seçici: işletim sisteminin menüsü yerine her tarayıcıda aynı görünen liste */
+  .dd { position:relative; }
+  .dd-btn { display:inline-flex; align-items:center; gap:.6rem; }
+  .dd-btn svg { width:.8rem; height:.8rem; transition:transform .15s; }
+  .dd-btn[aria-expanded="true"] { border-color:var(--ink); }
+  .dd-btn[aria-expanded="true"] svg { transform:rotate(180deg); }
+  .dd-list { position:absolute; top:calc(100% + 6px); left:0; z-index:20; min-width:15rem; margin:0; padding:.3rem; list-style:none;
+             background:var(--paper); border:1px solid var(--rule); border-radius:6px; box-shadow:0 14px 32px -14px rgba(10,16,25,.45); }
+  .dd-list li { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; padding:.55rem .65rem; border-radius:4px; cursor:pointer; }
+  .dd-list li small { font:500 .7rem/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .dd-list li.active { background:var(--wash); }
+  .dd-list li[aria-selected="true"] { font-weight:700; }
+  .dd-list li[aria-selected="true"]::after { content:""; order:-1; width:.4rem; height:.4rem; border-radius:50%; background:var(--ink); align-self:center; margin-right:-.5rem; }
+
+  #toast { position:fixed; left:50%; bottom:calc(1.25rem + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:.6rem 1rem; border-radius:6px; font-size:.85rem; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+  @media (prefers-reduced-motion: reduce) { .chev, #toast, .row.person { transition:none; } }
+
+  @media (max-width: 760px) {
+    .doc-head { grid-template-columns:1fr; padding:1.4rem 1rem 1.2rem; }
+    .stamp { justify-self:start; transform:rotate(-4deg); }
+    .form { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .form > div { padding:.7rem 1rem; }
+    .form > div:nth-child(3) { border-left:0; }
+    .form > div:nth-child(n+3) { border-top:1px solid var(--rule); }
+    .row { grid-template-columns:minmax(0,1fr) auto; gap:.65rem 1rem; padding:.85rem 1rem; }
+    .row.head, .row.load { display:none; }
+    .row .days { grid-column:1 / -1; grid-row:2; }
+    .chev { display:none; }
+    .sum { min-width:5.5rem; }
+    .cell { height:1.3rem; }
+    .days .wk { margin-left:4px; }
+    .ledger { padding:1.1rem 1rem; }
+    .ledger th:nth-child(3), .ledger td:nth-child(3), .ledger th:nth-child(4), .ledger td:nth-child(4) { display:none; }
+    .legend { padding:1rem; }
+    .rules { grid-template-columns:1fr; }
+    .rules > div { padding:1.1rem 1rem 1.2rem; border-left:0; border-top:1px solid var(--rule); }
+    .rules > div:first-child { border-top:0; }
+    .uyari { padding:1rem; }
+    .uyari li { grid-template-columns:1fr; gap:.1rem; }
+  }
+  td.tarih { white-space:nowrap; }
+  /* Plane'den gelen bölünemeyen uzun sözcük (yapıştırılmış adres gibi) dar ekranı yana taşırmasın */
+  .who, td, .uyari li > * { overflow-wrap:anywhere; }
+  /* kısa etiketler ve sayılar kırılmaz (yoksa Boy sütununda "M / D" diye dikey dizilir) */
+  .size, td.code, td.r, td.tarih { overflow-wrap:normal; white-space:nowrap; }
+  .size.soluk { opacity:.45; }
+  /* giriş ekranı */
+  .giris { min-height:100vh; display:grid; place-items:center; padding-block:2rem; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
+  .giris[hidden], .wrap[hidden] { display:none; }
+  .giris form { width:min(100%, 24rem); padding:2rem; display:grid; gap:1rem; }
+  .giris h1 { font-size:clamp(2.4rem, 9vw, 3.4rem); }
+  .giris label { display:grid; gap:.35rem; font:600 .66rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .giris input { height:2.6rem; border:1px solid var(--rule); border-radius:5px; background:var(--paper); color:var(--ink); padding:0 .75rem; font:400 1rem var(--body); text-transform:none; letter-spacing:0; }
+  .giris input:focus { border-color:var(--ink); outline:none; }
+  .giris button { height:2.6rem; border:0; border-radius:5px; background:var(--ink); color:var(--paper); font:600 .95rem var(--body); cursor:pointer; }
+  .giris button:disabled { opacity:.6; cursor:progress; }
+  .giris .hata { margin:0; min-height:1.2rem; font-size:.85rem; color:var(--warn); }
+  .giris .not { margin:0; font-size:.78rem; color:var(--muted); }
+  .btn.cikis { margin-left:auto; color:var(--muted); }
+  .bos-ay { padding:2rem; color:var(--muted); border-top:1px solid var(--rule); }
+  .bayat { margin:.9rem 0 0; font:500 .8rem/1.4 var(--body); color:var(--warn); }
+  .bayat[hidden] { display:none; }
+
+</style>
+</head>
+<body>
+<main class="giris" id="giris" hidden>
+  <form class="doc" id="giris-form" autocomplete="on">
+    <div>
+      <div class="eyebrow"><span>CronBI</span><span>Ekip puantajı</span></div>
+      <h1>Hak ediş<br><span>dökümü</span></h1>
+    </div>
+    <label for="g-kullanici">Kullanıcı adı<input id="g-kullanici" name="username" autocomplete="username" required></label>
+    <label for="g-sifre">Şifre<input id="g-sifre" name="password" type="password" autocomplete="current-password" required></label>
+    <button id="g-dugme" type="submit">Giriş</button>
+    <p class="hata" id="g-hata" role="alert"></p>
+    <p class="not">Giriş bu sekme kapanana kadar hatırlanır.</p>
+  </form>
+</main>
+<div class="wrap" id="pano" hidden>
+  <article class="doc">
+    <header class="doc-head">
+      <div>
+        <div class="eyebrow"><span>CronBI</span><span>Ekip puantajı</span><span>Hak ediş dökümü</span></div>
+        <h1 id="baslik"></h1>
+        <p class="bayat" id="bayat" hidden></p>
+        <div class="tools">
+          <div class="dd">
+            <button class="btn dd-btn" id="dd-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="dd-list"><span id="dd-lbl"></span>
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5 6 8l4-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <ul class="dd-list" id="dd-list" role="listbox" aria-label="Ay" tabindex="-1" hidden></ul>
+          </div>
+          <button class="btn" id="csv" type="button">Excel'e aktar</button>
+          <button class="btn cikis" id="cikis" type="button" hidden>Çıkış</button>
+        </div>
+      </div>
+      <div class="stamp" id="stamp"></div>
+    </header>
+
+    <dl class="form" id="form"></dl>
+
+    <div class="row head"><div>Kişi</div><div class="days" id="dayhead"></div><div style="text-align:right">Efor / iş günü</div><div></div></div>
+    <div class="row load" aria-hidden="true"><div class="lbl">Ekip yoğunluğu</div><div class="days" id="load"></div><div></div><div></div></div>
+    <div id="rows"></div>
+    <section class="uyari" id="uyari" aria-label="Düzeltilecekler" hidden></section>
+    <div class="legend" id="legend"></div>
+  </article>
+
+  <section class="doc rules" aria-label="Hesap kuralları">
+    <div><h2>Kime</h2><p>Görev, Plane'de atandığı kişinin dökümüne yazılır.</p></div>
+    <div><h2>Hangi ay</h2><ol><li>Done olmayan görev sayılmaz.</li><li>Bitiş tarihi varsa onun ayına sayılır.</li><li>Yoksa Done'a çekildiği günün ayına sayılır.</li></ol></div>
+    <div><h2>Ne kadar</h2>
+      <table class="num"><thead><tr><th>Boy</th><th class="r">Süre</th><th class="r">Gün</th></tr></thead><tbody id="sure-tablosu"></tbody>
+        <tfoot><tr><td colspan="3">1 gün = 8 saat</td></tr></tfoot></table></div>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+
+<script id="veri" type="application/json">__VERI__</script>
+<script>
+"use strict";
+const $ = (q) => document.querySelector(q);
+// Plane'den gelen her metin (görev adı, kişi adı) sayfaya bu kaçışla girer; kod olarak çalışmaz.
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const HAM = JSON.parse($("#veri").textContent);
+let VERI = { aylar: {}, kurallar: { sure: [] } };
+const AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const AYDA = ["Ocak'ta", "Şubat'ta", "Mart'ta", "Nisan'da", "Mayıs'ta", "Haziran'da", "Temmuz'da", "Ağustos'ta", "Eylül'de", "Ekim'de", "Kasım'da", "Aralık'ta"];
+const GK = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cts", "Paz"];
+// Süreler 1/16 gün katı (XS 0,375 · SM 0,8125) ve ikilik sayıda tam gösterilir; yuvarlanmaz ki satırlar toplamla tutsun.
+const f1 = (d) => String(Math.round(Number(d) * 1e4) / 1e4).replace(".", ",");
+const ayAdi = (ay) => `${AYLAR[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
+const gunAy = (iso) => [+iso.slice(8, 10), +iso.slice(5, 7)];
+const tarihSaat = (z) => `${+z.slice(8, 10)} ${AYLAR[+z.slice(5, 7) - 1]} ${z.slice(0, 4)} · ${z.slice(11, 16)}`;
+const hgun = (iso) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7;
+const sure = (s) => s.efor == null ? null : (s.boy === "XS" || s.boy === "SM") && !s.etiket ? `${f1(s.efor * 8)} saat` : `${f1(s.efor)} gün`;
+const sinif = (s) => (s.toplanti ? "c-toplanti" : "c-gelistirme");
+let toastT;
+function toast(m) { const t = $("#toast"); t.textContent = m; t.className = "show"; clearTimeout(toastT); toastT = setTimeout(() => (t.className = ""), 3200); }
+
+let AY_SIRASI = [];
+const S = { ay: undefined, open: null };
+
+function tarih(s) {
+  const son = s.bit || s.done || s.bas, bas = s.bas || son;
+  if (!son) return "";
+  const [bg, ba] = gunAy(bas < son ? bas : son), [sg, sa] = gunAy(son);
+  if (bas >= son) return `${sg} ${AYLAR[sa - 1]}`;
+  return ba === sa ? `${bg}–${sg} ${AYLAR[sa - 1]}` : `${bg} ${AYLAR[ba - 1]}–${sg} ${AYLAR[sa - 1]}`;
+}
+
+function render() {
+  const d = VERI.aylar[S.ay];
+  if (!d) { $("#rows").innerHTML = `<div class="bos-ay">Henüz yayınlanmış ay yok.</div>`; return; }
+  const canli = d.durum === "canli";
+  const kisiler = d.kisiler;
+  const tekil = (f) => new Set(kisiler.flatMap(f).map((s) => s.kod)).size;
+  const top = kisiler.reduce((a, k) => a + Number(k.efor), 0), gorev = tekil((k) => [...k.sayilan, ...k.gec, ...k.bos]);
+  const acik = tekil((k) => k.acik);
+  const sonGun = d.gunler.length, [zGun, zAy] = gunAy(d.zaman), buAy = zAy === +S.ay.slice(5, 7);
+  const ileride = (n) => canli && buAy && n > zGun;
+  const sonraki = (+S.ay.slice(5, 7)) % 12;
+
+  $("#baslik").innerHTML = `${AYLAR[+S.ay.slice(5, 7) - 1]} <span>${S.ay.slice(0, 4)}</span>`;
+  document.title = `Ekip Puantajı · ${ayAdi(S.ay)}`;
+  const yas = (Date.now() - Date.parse(d.zaman)) / 36e5;
+  $("#bayat").hidden = !(canli && yas > 26);
+  $("#bayat").textContent = `Son güncelleme ${tarihSaat(d.zaman)}; Plane'e ulaşılamamış olabilir, rakamlar bu tarihe kadar.`;
+  $("#stamp").className = "stamp" + (canli ? " live" : "");
+  $("#stamp").innerHTML = canli
+    ? `<small>Ay sürüyor</small><b>Taslak</b><small>1 ${AYDA[sonraki]} kesinleşir</small>`
+    : `<small>CronBI · Puantaj</small><b>Kesinleşti</b><small>${tarihSaat(d.planlanan || d.zaman)}</small>`;
+  $("#dd-lbl").textContent = ayAdi(S.ay);
+  $("#form").innerHTML = `
+    <div><dt>Dönem</dt><dd class="num">1–${sonGun} ${AYLAR[+S.ay.slice(5, 7) - 1]}</dd></div>
+    <div><dt>İş günü</dt><dd class="num">${d.is_gunu} <small>gün</small></dd></div>
+    <div><dt>Ekip toplamı</dt><dd class="num">${f1(top)} <small>gün · ${gorev} görev</small></dd></div>
+    <div><dt>${canli ? "Dikkat" : "Sayılmayan"}</dt><dd class="num${acik ? " flag" : ""}">${acik} <small>görev</small></dd></div>`;
+
+  const sablon = d.gunler.map((g) => (g.hafta_sonu ? "minmax(0,.55fr)" : "minmax(0,1fr)")).join(" ");
+  const sinifGun = (g, n) => (g.hafta_sonu ? " we" : "") + (ileride(n) ? " future" : "");
+  ["#dayhead", "#load"].forEach((q) => ($(q).style.gridTemplateColumns = sablon));
+  $("#dayhead").innerHTML = d.gunler.map((g, i) => `<div class="dh${sinifGun(g, i + 1)}">${i + 1}<small>${GK[hgun(g.gun)]}</small></div>`).join("");
+  const kapsar = (s, n) => s.cizgi && s.cizgi[0] <= n && n <= s.cizgi[1];
+  $("#load").innerHTML = d.gunler.map((g, i) => {
+    const n = kisiler.filter((k) => k.sayilan.some((s) => kapsar(s, i + 1))).length;
+    return `<div class="bar${sinifGun(g, i + 1)}" title="${i + 1} ${AYLAR[+S.ay.slice(5, 7) - 1]}: ${n} kişi"><i style="height:${kisiler.length ? (n / kisiler.length) * 100 : 0}%"></i></div>`;
+  }).join("");
+
+  if (!kisiler.length) {
+    $("#rows").innerHTML = `<div class="bos-ay">Bu ay henüz Done'a çekilmiş görev yok. Görevler Done'a çekildikçe burada görünür.</div>`;
+  } else {
+    $("#rows").innerHTML = kisiler.map((k) => {
+      const hucre = d.gunler.map((g, i) => {
+        const n = i + 1;
+        const on = [...k.sayilan.map((s) => [s, ""]), ...k.bos.map((s) => [s, " wait"]), ...k.acik.map((s) => [s, " out"])].filter(([s]) => kapsar(s, n));
+        const ipucu = on.map(([s]) => `${s.kod} ${s.ad}`).join("\n");
+        return `<span class="cell${sinifGun(g, n)}" title="${esc(`${n} ${AYLAR[+S.ay.slice(5, 7) - 1]} ${GK[hgun(g.gun)]}${ipucu ? "\n" + ipucu : ""}`)}">${on.map(([s, c]) => `<i class="${sinif(s)}${c}"></i>`).join("")}</span>`;
+      }).join("");
+      const parca = [k.acik.length ? `<span class="flag">${k.acik.length} görev sayılmadı</span>` : "", k.gec.length ? `${k.gec.length} geç kapanan dahil` : ""].filter(Boolean);
+      const acikMi = S.open === k.kisa;
+      return `<button class="row person" type="button" data-k="${esc(k.kisa)}" aria-expanded="${acikMi}" aria-controls="lg-${esc(k.kisa)}">
+          <span class="who">${esc(k.gorunen)}<small>${parca.join(" · ") || "Eksik yok"}</small></span>
+          <span class="days" style="grid-template-columns:${sablon}">${hucre}</span>
+          <span class="sum"><b class="num">${f1(k.efor)}<small>/ ${d.is_gunu} gün</small></b><span class="meter"><i style="width:${Math.min(100, (Number(k.efor) / d.is_gunu) * 100)}%"></i></span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </button>
+        <div class="ledger" id="lg-${esc(k.kisa)}" ${acikMi ? "" : "hidden"}>${acikMi ? dokum(k, d) : ""}</div>`;
+    }).join("");
+    document.querySelectorAll(".row.person").forEach((b) => (b.onclick = () => {
+      const k = b.dataset.k;
+      S.open = S.open === k ? null : k;
+      adresYaz();
+      render();
+      document.querySelector(`.row.person[data-k="${CSS.escape(k)}"]`)?.focus();
+    }));
+  }
+
+  const uyar = canli && d.uyarilar.length;
+  $("#uyari").hidden = !uyar;
+  $("#uyari").innerHTML = uyar ? `<h3>Düzeltilecekler · ${d.uyarilar.length}</h3><ul>${d.uyarilar.map((u) => `<li><code>${esc(u.kod)}</code><span>${esc(u.ad)} — ${esc(u.neden)}</span></li>`).join("")}</ul>` : "";
+  $("#legend").innerHTML = `<span class="c-gelistirme">Geliştirme</span><span class="c-toplanti">Toplantı</span><span class="waitk">Toplama girmeyen</span><span class="hatch">Done değil</span><span class="meterk">Efor / iş günü</span>`;
+  ddRender();
+}
+
+function boyHucresi(s) {
+  if (s.etiket) return `<span class="size">${esc(s.etiket)}</span>${s.boy ? ` <span class="size soluk" title="Süre gün etiketinden">${esc(s.boy)}</span>` : ""}`;
+  return s.boy ? `<span class="size">${esc(s.boy)}</span>` : "—";
+}
+
+function dokum(k, d) {
+  const satir = (s, not, ek) => `<tr class="${not ? "out" : s.efor == null ? "bos" : ""}"><td class="code">${esc(s.kod)}</td><td><span class="gorev-ad"><span class="cat ${sinif(s)}" title="${s.toplanti ? "Toplantı" : "Geliştirme"}"></span><span>${esc(s.ad)}</span></span>${ek ? `<span class="sub2">${esc(ek)}</span>` : ""}${not ? `<span class="note">${esc(not)}</span>` : ""}</td>
+    <td class="tarih">${tarih(s)}</td><td class="bagli">${esc(s.bagli_is || "")}</td><td>${boyHucresi(s)}</td><td class="r num">${not ? "—" : sure(s) ?? `<span class="slot" aria-label="Toplama girmez"${s.ust ? ' title="Alt görevleri ayrıca sayılıyor"' : ""}></span>`}</td></tr>`;
+  const sirala = (l) => [...l].sort((a, b) => (a.bas || a.bit || a.done || "").localeCompare(b.bas || b.bit || b.done || ""));
+  let h = `<div class="lg-title"><b>${esc(k.gorunen)} · ${ayAdi(S.ay)}</b><span>${k.sayilan.length + k.gec.length + k.bos.length} görev · ${f1(k.efor)} gün</span></div><div class="lg-scroll"><table><thead><tr><th>Kod</th><th>Görev</th><th>Tarih</th><th>Bağlı olduğu iş</th><th>Boy</th><th class="r">Süre</th></tr></thead><tbody>`;
+  h += sirala([...k.sayilan, ...k.bos]).map((s) => satir(s)).join("");
+  if (k.gec.length) h += `<tr class="sub"><td colspan="6">Geç kapanan · geçen ayın işi</td></tr>` + k.gec.map((s) => satir(s, null, s.done ? `Done'a çekilme: ${tarih({ bit: s.done })}` : "")).join("");
+  h += `<tr class="total"><td></td><td>Toplam</td><td></td><td></td><td></td><td class="r num">${f1(k.efor)} gün</td></tr>`;
+  if (k.acik.length) h += `<tr class="sub"><td colspan="6">Sayılmayanlar</td></tr>` + k.acik.map((s) => satir(s, `Henüz Done değil (${s.durum})`)).join("");
+  h += `</tbody></table></div><p class="colophon">Kaynak: Plane · ${d.durum === "canli" ? `son güncelleme ${tarihSaat(d.zaman)} · ayın son 2 günü 12:00 ve 17:30'da da güncellenir` : `kesinleşme ${tarihSaat(d.zaman)} · bu döküm değişmez`}</p>`;
+  return h;
+}
+
+const sureTablosu = () => ($("#sure-tablosu").innerHTML = VERI.kurallar.sure.map((r) => `<tr><td><span class="size">${esc(r.etiket)}</span></td><td class="r">${esc(r.sure)}</td><td class="r">${esc(r.gun)}</td></tr>`).join(""));
+
+$("#csv").onclick = () => {
+  const d = VERI.aylar[S.ay];
+  if (!d) return toast("Aktarılacak ay yok");
+  // =, +, -, @ ile başlayan hücreyi Excel formül sayar (kişi adı Plane'den gelir): başına ' konur.
+  const hucre = (v) => { const m = String(v); return `"${(/^[=+\-@\t\r]/.test(m) ? "'" + m : m).replace(/"/g, '""')}"`; };
+  const metin = ["Kişi;Efor (gün);Kapanan görev;Toplama girmeyen;Done değil",
+    ...d.kisiler.map((k) => [k.gorunen, f1(k.efor), k.sayilan.length + k.gec.length + k.bos.length, k.bos.length, k.acik.length].map(hucre).join(";"))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + metin], { type: "text/csv" }));
+  a.download = `puantaj-${S.ay}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`puantaj-${S.ay}.csv indirildi`);
+};
+
+// ay seçici: işletim sisteminin menüsü yerine her tarayıcıda aynı görünen liste (ok tuşları, Enter, Esc)
+const ddBtn = $("#dd-btn"), ddList = $("#dd-list");
+let ddAct = 0;
+function ddRender() {
+  ddList.innerHTML = AY_SIRASI.map((ay, i) => `<li role="option" id="ay-${ay}" data-v="${ay}" aria-selected="${ay === S.ay}" class="${i === ddAct ? "active" : ""}">${ayAdi(ay)}<small>${VERI.aylar[ay].durum === "canli" ? "sürüyor" : "kesinleşti"}</small></li>`).join("");
+  ddList.setAttribute("aria-activedescendant", "ay-" + AY_SIRASI[ddAct]);
+  ddList.querySelectorAll("li").forEach((li, i) => { li.onmousemove = () => { if (ddAct !== i) { ddAct = i; ddRender(); } }; li.onclick = () => ddPick(li.dataset.v); });
+}
+function ddOpen() { if (!AY_SIRASI.length) return; ddAct = Math.max(0, AY_SIRASI.indexOf(S.ay)); ddList.hidden = false; ddBtn.setAttribute("aria-expanded", "true"); ddRender(); ddList.focus(); }
+function ddClose(odak) { ddList.hidden = true; ddBtn.setAttribute("aria-expanded", "false"); if (odak) ddBtn.focus(); }
+function ddPick(v) { ddClose(true); if (v !== S.ay) { S.ay = v; S.open = null; adresYaz(); render(); } }
+function adresYaz() { try { history.replaceState(null, "", S.open ? "#" + S.open : location.pathname + location.search); } catch (e) {} }
+ddBtn.onclick = () => (ddList.hidden ? ddOpen() : ddClose());
+ddBtn.onkeydown = (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); ddOpen(); } };
+ddList.onkeydown = (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); ddAct = Math.min(AY_SIRASI.length - 1, ddAct + 1); ddRender(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); ddAct = Math.max(0, ddAct - 1); ddRender(); }
+  else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ddPick(AY_SIRASI[ddAct]); }
+  else if (e.key === "Escape" || e.key === "Tab") { ddClose(e.key === "Escape"); }
+};
+document.addEventListener("click", (e) => { if (!ddList.hidden && !e.target.closest(".dd")) ddClose(); });
+
+function adrestenAc() {
+  const d = VERI.aylar[S.ay], h = location.hash.slice(1);
+  S.open = d && d.kisiler.some((k) => k.kisa === h) ? h : null;
+}
+window.addEventListener("hashchange", () => { adrestenAc(); render(); });
+
+function baslat(veri) {
+  VERI = veri;
+  AY_SIRASI = Object.keys(VERI.aylar).sort().reverse();
+  S.ay = AY_SIRASI[0];
+  sureTablosu();
+  adrestenAc();
+  $("#giris").hidden = true;
+  $("#pano").hidden = false;
+  render();
+}
+
+// ── kilit: sablon ile pano/sifre.py aynı yöntem (PBKDF2-SHA256, AES-256-GCM, tuz = kullanıcı adından) ──
+const OTURUM = "cronbi-efor-anahtar";
+const b64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+const yazi = (t) => new TextEncoder().encode(t);
+async function anahtarTuret(kullanici, sifre, tur) {
+  const tuz = new Uint8Array(await crypto.subtle.digest("SHA-256", yazi(`cronbi-efor-panosu\u0000sayfa\u0000${kullanici}`))).slice(0, 16);
+  const ham = await crypto.subtle.importKey("raw", yazi(`${kullanici}\u0000${sifre}`), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: tuz, iterations: tur }, ham, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+}
+async function coz(paket, anahtar) {
+  const acik = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(paket.iv) }, anahtar, b64(paket.veri));
+  return JSON.parse(new TextDecoder().decode(acik));
+}
+async function oturumdanAc(paket) {
+  let kayit = null;
+  try { kayit = sessionStorage.getItem(OTURUM); } catch (e) {}
+  if (!kayit) return false;
+  try {
+    const anahtar = await crypto.subtle.importKey("raw", b64(kayit), { name: "AES-GCM" }, false, ["decrypt"]);
+    baslat(await coz(paket, anahtar));
+    return true;
+  } catch (e) {
+    try { sessionStorage.removeItem(OTURUM); } catch (e2) {}
+    return false;
+  }
+}
+async function kilidiAc() {
+  const paket = HAM.kilitli;
+  if (!paket) { baslat(HAM); return; }
+  $("#cikis").hidden = false;
+  if (await oturumdanAc(paket)) return;
+  $("#giris").hidden = false;
+  $("#g-kullanici").focus();
+  $("#giris-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const dugme = $("#g-dugme");
+    dugme.disabled = true; dugme.textContent = "Açılıyor…"; $("#g-hata").textContent = "";
+    try {
+      const anahtar = await anahtarTuret($("#g-kullanici").value.trim(), $("#g-sifre").value, paket.tur);
+      const veri = await coz(paket, anahtar);
+      try { sessionStorage.setItem(OTURUM, btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("raw", anahtar))))); } catch (e2) {}
+      $("#g-sifre").value = "";
+      baslat(veri);
+    } catch (e2) {
+      $("#g-hata").textContent = "Kullanıcı adı ya da şifre yanlış.";
+      $("#g-sifre").select();
+    } finally {
+      dugme.disabled = false; dugme.textContent = "Giriş";
+    }
+  };
+}
+$("#cikis").onclick = () => { try { sessionStorage.removeItem(OTURUM); } catch (e) {} location.reload(); };
+kilidiAc();
+</script>
+</body>
+</html>
