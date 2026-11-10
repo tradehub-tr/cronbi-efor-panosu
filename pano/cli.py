@@ -92,8 +92,9 @@ def main(argv=None):
         print(f"Plane'e ulaşılamadı: {e}. Hiçbir dosya yazılmadı.", file=sys.stderr)
         return 2
     except hesap.VeriHatasi as e:
+        ayrinti = "ayrıntı herkese açık günlüğe yazılmadı, yerelde --sessiz olmadan çalıştırın" if a.sessiz else e
         print(
-            f"Plane verisi beklenmeyen biçimde: {e}. Hiçbir dosya yazılmadı.",
+            f"Plane verisi beklenmeyen biçimde: {ayrinti}. Hiçbir dosya yazılmadı.",
             file=sys.stderr,
         )
         return 3

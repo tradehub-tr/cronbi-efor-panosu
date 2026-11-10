@@ -3,7 +3,7 @@
   python -m pano.yayin --kilitli-arsiv arsiv-dali --site site [--tetik "<cron>"]
   python -m pano.yayin --kilitli-arsiv arsiv-dali --sifre-yenile
 
-Ortam: PLANE_API_KEY, PANO_KULLANICI, PANO_SIFRE; şifre yenilemede ayrıca ESKI_PANO_KULLANICI, ESKI_PANO_SIFRE.
+Ortam: PLANE_API_KEY, PANO_KULLANICI, PANO_SIFRE, PANO_KISILER; şifre yenilemede ayrıca ESKI_PANO_KULLANICI, ESKI_PANO_SIFRE.
 Günlük herkese açıktır (repo herkese açık): kişi adı, görev, gün sayısı yazılmaz.
 Çıkış kodu 0 dışındaysa sayfa ve arşiv yazılmaz; yayındaki son sayfa kalır.
 """
@@ -17,11 +17,12 @@ import tempfile
 from calendar import monthrange
 from pathlib import Path
 
-from . import ayarlar, cli, sayfa, sifre
+from . import ayarlar, cli, hesap, sayfa, sifre
 
-# Ayın son 2 günü 12:00 ve 17:30 (İstanbul) ek güncelleme; GitHub takviminde "son 2 gün" yok, 28–31 çalışır
-# ve gün burada denetlenir (karar 10). Gece 00:30 çalışması (30 21 * * *) her gün tam çalışır.
-EK_TETIKLER = {"0 9 28-31 * *", "30 14 28-31 * *"}
+# Ayın son 2 günü 12:00 ve 17:30 (İstanbul) ek güncelleme; GitHub takviminde "son 2 gün" yok, 27–31 çalışır
+# (Şubat 27 artık olmayan yılda son iki günden biri) ve gün burada denetlenir (karar 10). Ayın 1'inde de
+# çalışır: 00:30 kesinleşmesi düştüyse aynı gün yeniden dener. Gece 00:30 çalışması her gün tam çalışır.
+EK_TETIKLER = {"0 9 1,27-31 * *", "30 14 1,27-31 * *"}
 # Yayınlanan sayfada ya da kilitli arşivde bunlardan biri görünürse veri düz kalmış demektir.
 DUZ_VERI_IZI = ('"kisiler"', '"efor"', '"sayilan"', "MOGEM-")
 PAKET_ALANLARI = {"v", "tur", "iv", "veri"}
@@ -85,8 +86,9 @@ def sifre_yenile(kilitli):
 
 def calis(a):
     simdi = cli._simdi(a.simdi)
-    if a.tetik in EK_TETIKLER and not son_iki_gun(simdi):
-        print("Bugün ayın son iki günü değil; ek güncelleme yapılmadı.")
+    geciken = hesap.kesinlesecek_aylar(simdi, {p.stem for p in Path(a.kilitli_arsiv).glob("????-??.json")})
+    if a.tetik in EK_TETIKLER and not son_iki_gun(simdi) and not geciken:
+        print("Bugün ayın son iki günü değil, kesinleşmesi geciken ay yok; ek güncelleme yapılmadı.")
         return 0
     sayfa_anahtari = sifre.anahtar(*_kimlik(), "sayfa")
     arsiv_anahtari = sifre.anahtar(*_kimlik(), "arsiv")

@@ -3,14 +3,15 @@
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
-from pano import sayfa, sifre, yayin
+from pano import cli, sayfa, sifre, yayin
 from tests.test_hesap import cekim, kayit
 
 KIMLIK = {"PANO_KULLANICI": "yonetici", "PANO_SIFRE": "örnek-şifre (Efor Panosu)"}
@@ -39,6 +40,13 @@ class Kilit(unittest.TestCase):
         self.assertNotEqual(
             sifre.anahtar("y", "s", "sayfa"), sifre.anahtar("y", "s", "arsiv")
         )
+
+    def test_kullanici_adi_kenar_boslugu_ve_harf_bicimi_ayni_anahtari_verir(self):
+        # Tarayıcı kullanıcı adını trim + NFC eder; gizli değişkende boşluk ya da NFD "ö" sayfayı kilitlemesin
+        nfc = sifre.anahtar("yönetici", "Şifre-ığüçö", "sayfa")
+        nfd = "yo\u0308netici"
+        self.assertEqual(sifre.anahtar(f" {nfd}\n", "S\u0327ifre-ığüçö", "sayfa"), nfc)
+        self.assertNotEqual(sifre.anahtar("yönetici", "Şifre-ığüçö ", "sayfa"), nfc)  # şifre kırpılmaz
 
     def test_bos_kimlik_reddedilir(self):
         with self.assertRaises(sifre.SifreHatasi):
@@ -95,9 +103,16 @@ class Calisma(unittest.TestCase):
         return kod, cikti.getvalue()
 
     def test_ek_tetik_son_iki_gun_degilse_hicbir_sey_yapmaz(self):
-        kod, cikti = self.calistir("2026-11-28T09:00:00+00:00", "0 9 28-31 * *")
+        kod, cikti = self.calistir("2026-11-28T09:00:00+00:00", "0 9 1,27-31 * *")
         self.assertEqual((kod, Path(self.k, "site").exists()), (0, False))
         self.assertIn("ek güncelleme yapılmadı", cikti)
+
+    def test_ayin_birinde_kesinlesme_dustuyse_ek_tetik_yeniden_dener(self):
+        kod, _ = self.calistir("2026-12-01T09:00:00+00:00", "0 9 1,27-31 * *")
+        self.assertEqual(kod, 0)
+        self.assertTrue(Path(self.k, "aylar", "2026-11.json").exists())
+        kod, cikti = self.calistir("2026-12-01T14:30:00+00:00", "30 14 1,27-31 * *")
+        self.assertIn("ek güncelleme yapılmadı", cikti)  # kesinleşti: ikinci deneme boş geçer
 
     def test_kesinlestirir_kilitler_ve_duz_veri_birakmaz(self):  # (4, 35)
         kod, cikti = self.calistir("2026-12-01T09:00:00+00:00")
@@ -181,9 +196,31 @@ class IsAkisi(unittest.TestCase):
     """İlk canlı çalışmada PANO_KISILER iş akışına verilmemişti; dışlama ve ad düzeltmesi sessizce düştü."""
 
     def test_kodun_okudugu_her_gizli_degisken_is_akisina_verilir(self):
+        # pano.yayin ayarlar'ı içe aktarır; PANO_KISILER yoksa iki akış da durur (bağımsız inceleme F3, bulgu 1)
+        for akis, adlar in (
+            ("pano.yml", ("PLANE_API_KEY", "PANO_KULLANICI", "PANO_SIFRE", "PANO_KISILER")),
+            ("sifre-yenile.yml", ("ESKI_PANO_KULLANICI", "ESKI_PANO_SIFRE", "PANO_KULLANICI", "PANO_SIFRE", "PANO_KISILER")),
+        ):
+            metin = Path(".github/workflows", akis).read_text(encoding="utf-8")
+            for ad in adlar:
+                self.assertIn(f"{ad}: ${{{{ secrets.{ad} }}}}", metin, akis)
+
+    def test_ek_tetikler_takvimle_ayni_ayin_birini_ve_subat_27yi_kapsar(self):
         akis = Path(".github/workflows/pano.yml").read_text(encoding="utf-8")
-        for ad in ("PLANE_API_KEY", "PANO_KULLANICI", "PANO_SIFRE", "PANO_KISILER"):
-            self.assertIn(f"{ad}: ${{{{ secrets.{ad} }}}}", akis)
+        takvim = set(re.findall(r'cron: "([^"]+)"', akis)) - {"30 21 * * *"}
+        self.assertEqual(takvim, yayin.EK_TETIKLER)
+        for c in takvim:
+            self.assertEqual(c.split()[2], "1,27-31")
+
+    def test_veri_hatasi_herkese_acik_gunluge_gorev_kodu_yazmaz(self):
+        with tempfile.TemporaryDirectory() as t:
+            c = Path(t, "c.json")
+            c.write_text(json.dumps(cekim(kayit(10, durum="s-yok", etiket=["MD"], bit="2026-11-05"))), encoding="utf-8")
+            hata = io.StringIO()
+            with redirect_stderr(hata):
+                kod = cli.main(["--cekim", str(c), "--arsiv", f"{t}/a", "--cikti", f"{t}/c", "--sessiz"])
+        self.assertEqual(kod, 3)
+        self.assertNotIn("MOGEM-", hata.getvalue())
 
     def test_githubda_kisi_ayari_yoksa_durur(self):
         from pano import ayarlar

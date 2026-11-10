@@ -1,14 +1,15 @@
 # Ekip puantajı: Plane'den çek → kesinleştir → kilitli sayfayı GitHub Pages'a yayınla.
 # Saatler UTC; İstanbul = UTC+3 (karar 10): gece 00:30 = 21:30 UTC · ek 12:00 = 09:00 · ek 17:30 = 14:30.
-# Ek çalışmalar 28–31'inde başlar; ayın son iki günü değilse pano.yayin hiçbir şey yapmadan biter.
+# Ek çalışmalar 1'inde ve 27–31'inde başlar; ayın son iki günü değilse ve kesinleşmesi geciken ay yoksa
+# pano.yayin hiçbir şey yapmadan biter (1'i 00:30 düşerse aynı gün 12:00 ve 17:30'da yeniden dener).
 # Günlük herkese açıktır: betik kişi adı ve gün yazdırmaz (--sessiz).
 name: Ekip puantajı
 
 on:
   schedule:
     - cron: "30 21 * * *"
-    - cron: "0 9 28-31 * *"
-    - cron: "30 14 28-31 * *"
+    - cron: "0 9 1,27-31 * *"
+    - cron: "30 14 1,27-31 * *"
   workflow_dispatch:
 
 permissions:

@@ -24,10 +24,11 @@ Yönetici her ayın 1'i sabahı tek adresten, kullanıcı adı ve şifreyle giri
 |---|---|
 | `PLANE_API_KEY` | Plane API anahtarı |
 | `PANO_KULLANICI`, `PANO_SIFRE` | Sayfanın kullanıcı adı ve şifresi (arşiv de bununla kilitlenir) |
-| `PANO_KISILER` | Panoda görünmeyecek hesaplar ve elle ad düzeltmeleri (JSON) |
+| `PANO_KISILER` | Panoda görünmeyecek hesaplar ve elle ad düzeltmeleri (JSON); verilmemişse çalışma durur |
 
 **Şifre değiştirmek:** eski kimliği geçici olarak `ESKI_PANO_KULLANICI` / `ESKI_PANO_SIFRE` olarak girin, yenisini
-`PANO_KULLANICI` / `PANO_SIFRE` olarak güncelleyin, Actions'ta "Şifre yenile" iş akışını çalıştırın, sonra `ESKI_*` değişkenlerini silin.
+`PANO_KULLANICI` / `PANO_SIFRE` olarak güncelleyin, Actions'ta "Şifre yenile" iş akışını çalıştırın, ardından "Ekip puantajı"nı elle
+çalıştırın (yoksa sayfa ilk geceye kadar eski şifreyle açılır), sonra `ESKI_*` değişkenlerini silin.
 
 ## Yerelde
 
