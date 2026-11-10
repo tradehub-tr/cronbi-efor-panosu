@@ -1,0 +1,75 @@
+# Ekip puantajı: Plane'den çek → kesinleştir → kilitli sayfayı GitHub Pages'a yayınla.
+# Saatler UTC; İstanbul = UTC+3 (karar 10): gece 00:30 = 21:30 UTC · ek 12:00 = 09:00 · ek 17:30 = 14:30.
+# Ek çalışmalar 28–31'inde başlar; ayın son iki günü değilse pano.yayin hiçbir şey yapmadan biter.
+# Günlük herkese açıktır: betik kişi adı ve gün yazdırmaz (--sessiz).
+name: Ekip puantajı
+
+on:
+  schedule:
+    - cron: "30 21 * * *"
+    - cron: "0 9 28-31 * *"
+    - cron: "30 14 28-31 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # arsiv dalına kesinleşen ayı yazmak için
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pano
+  cancel-in-progress: false
+
+jobs:
+  yayin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.dagit.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kilitli arşivi al (arsiv dalı)
+        run: |
+          if git ls-remote --exit-code --heads origin arsiv >/dev/null; then
+            git fetch --depth=1 origin arsiv
+            git worktree add arsiv-dali origin/arsiv
+          else
+            git worktree add --orphan -b arsiv arsiv-dali
+          fi
+          mkdir -p arsiv-dali/aylar
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Çek, kesinleştir, kilitli sayfayı üret
+        env:
+          PLANE_API_KEY: ${{ secrets.PLANE_API_KEY }}
+          PANO_KULLANICI: ${{ secrets.PANO_KULLANICI }}
+          PANO_SIFRE: ${{ secrets.PANO_SIFRE }}
+        run: python -m pano.yayin --kilitli-arsiv arsiv-dali/aylar --site site --tetik "${{ github.event.schedule }}"
+
+      - name: Yeni kesinleşen ayı arşive yaz
+        working-directory: arsiv-dali
+        run: |
+          git add aylar
+          if git diff --cached --quiet; then echo "Arşivde değişiklik yok"; exit 0; fi
+          git -c user.name="cronbi-efor-panosu" -c user.email="actions@users.noreply.github.com" commit -m "arsiv: kesinleşen ay eklendi"
+          git push origin HEAD:arsiv
+
+      - name: Sayfa var mı (ek güncelleme günü değilse yok)
+        id: var
+        run: test -f site/index.html && echo "yayin=evet" >> "$GITHUB_OUTPUT" || echo "yayin=hayir" >> "$GITHUB_OUTPUT"
+
+      - if: steps.var.outputs.yayin == 'evet'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - if: steps.var.outputs.yayin == 'evet'
+        id: dagit
+        uses: actions/deploy-pages@v4

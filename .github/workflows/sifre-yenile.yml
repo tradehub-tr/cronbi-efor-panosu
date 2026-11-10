@@ -1,0 +1,48 @@
+# Sayfa şifresi değiştiğinde kesinleşmiş ayları yeni şifreyle yeniden kilitler (karar 35). Yalnız elle çalışır.
+# Önce: ESKI_PANO_KULLANICI / ESKI_PANO_SIFRE = eski kimlik, PANO_KULLANICI / PANO_SIFRE = yeni kimlik.
+# Sonra: "Ekip puantajı" iş akışını elle çalıştırıp sayfayı yeni şifreyle yayınlayın, ESKI_* değişkenlerini silin.
+name: Şifre yenile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pano
+  cancel-in-progress: false
+
+jobs:
+  yenile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kilitli arşivi al
+        run: |
+          git fetch --depth=1 origin arsiv
+          git worktree add arsiv-dali origin/arsiv
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Eski şifreyle aç, yeni şifreyle kilitle
+        env:
+          ESKI_PANO_KULLANICI: ${{ secrets.ESKI_PANO_KULLANICI }}
+          ESKI_PANO_SIFRE: ${{ secrets.ESKI_PANO_SIFRE }}
+          PANO_KULLANICI: ${{ secrets.PANO_KULLANICI }}
+          PANO_SIFRE: ${{ secrets.PANO_SIFRE }}
+        run: python -m pano.yayin --kilitli-arsiv arsiv-dali/aylar --sifre-yenile
+
+      - name: Arşive yaz
+        working-directory: arsiv-dali
+        run: |
+          git add aylar
+          if git diff --cached --quiet; then echo "Arşivde değişiklik yok"; exit 0; fi
+          git -c user.name="cronbi-efor-panosu" -c user.email="actions@users.noreply.github.com" commit -m "arsiv: yeni şifreyle yeniden kilitlendi"
+          git push origin HEAD:arsiv
