@@ -2,7 +2,7 @@
 
 Tarayıcıdaki WebCrypto aynı yöntemi kullanır (sablon.html → coz()); biri değişirse öteki de değişir.
 Tuz kullanıcı adından ve kilidin amacından ("sayfa" / "arsiv") türetilir: anahtar her yayında aynı kalır,
-böylece tarayıcının oturum boyunca sakladığı anahtar gece güncellemesinden sonra da açar (karar 33).
+böylece tarayıcının kapanana kadar sakladığı anahtar gece güncellemesinden sonra da açar (karar 33).
 Arşiv sayfa şifresiyle kilitlenir ama ayrı tuzla (karar 35).
 """
 
@@ -10,6 +10,7 @@ import base64
 import hashlib
 import json
 import os
+import unicodedata
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
@@ -28,13 +29,21 @@ def _b64(b):
     return base64.b64encode(b).decode()
 
 
+def _temiz(kullanici, sifre=""):
+    """Kullanıcı adının kenar boşluğu silinir; ikisi de NFC'ye çevrilir (Mac'ten kopyalanan "ö" iki parçalı gelebilir).
+    Tarayıcı (sablon.html → anahtarTuret) aynısını yapar."""
+    return unicodedata.normalize("NFC", kullanici.strip()), unicodedata.normalize("NFC", sifre)
+
+
 def tuz(kullanici, amac):
+    kullanici = _temiz(kullanici)[0]
     return hashlib.sha256(
         f"cronbi-efor-panosu\x00{amac}\x00{kullanici}".encode()
     ).digest()[:16]
 
 
 def anahtar(kullanici, sifre, amac):
+    kullanici, sifre = _temiz(kullanici or "", sifre or "")
     if not kullanici or not sifre:
         raise SifreHatasi("kullanıcı adı ve şifre boş olamaz")
     kdf = PBKDF2HMAC(

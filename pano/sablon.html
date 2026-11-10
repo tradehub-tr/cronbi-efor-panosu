@@ -227,7 +227,7 @@ __YAZI__
     <label for="g-sifre">Şifre<input id="g-sifre" name="password" type="password" autocomplete="current-password" required></label>
     <button id="g-dugme" type="submit">Giriş</button>
     <p class="hata" id="g-hata" role="alert"></p>
-    <p class="not">Giriş bu sekme kapanana kadar hatırlanır.</p>
+    <p class="not">Giriş tarayıcı kapanana kadar hatırlanır.</p>
   </form>
 </main>
 <div class="wrap" id="pano" hidden>
@@ -318,8 +318,13 @@ function render() {
   $("#baslik").innerHTML = `${AYLAR[+S.ay.slice(5, 7) - 1]} <span>${S.ay.slice(0, 4)}</span>`;
   document.title = `Ekip Puantajı · ${ayAdi(S.ay)}`;
   const yas = (Date.now() - Date.parse(d.zaman)) / 36e5;
-  $("#bayat").hidden = !(canli && yas > 26);
-  $("#bayat").textContent = `Son güncelleme ${tarihSaat(d.zaman)}; Plane'e ulaşılamamış olabilir, rakamlar bu tarihe kadar.`;
+  // Kesinleşme anı (sonraki ayın 1'i 00:30 İstanbul) geçtiği hâlde ay hâlâ canlıysa yönetici taslak rakamla hesap yapmasın
+  const [yy, aa] = S.ay.split("-").map(Number), sAy = aa === 12 ? [yy + 1, 1] : [yy, aa + 1];
+  const gecikti = canli && Date.now() > Date.parse(`${sAy[0]}-${String(sAy[1]).padStart(2, "0")}-01T00:30:00+03:00`);
+  $("#bayat").hidden = !(gecikti || (canli && yas > 26));
+  $("#bayat").textContent = gecikti
+    ? `Kesinleşme gecikti: bu ay 1 ${AYDA[sonraki]} 00:30'da kesinleşmeliydi, rakamlar henüz kesin değil. Son güncelleme ${tarihSaat(d.zaman)}.`
+    : `Son güncelleme ${tarihSaat(d.zaman)}; Plane'e ulaşılamamış olabilir, rakamlar bu tarihe kadar.`;
   $("#stamp").className = "stamp" + (canli ? " live" : "");
   $("#stamp").innerHTML = canli
     ? `<small>Ay sürüyor</small><b>Taslak</b><small>1 ${AYDA[sonraki]} kesinleşir</small>`
@@ -453,9 +458,15 @@ function baslat(veri) {
 
 // ── kilit: sablon ile pano/sifre.py aynı yöntem (PBKDF2-SHA256, AES-256-GCM, tuz = kullanıcı adından) ──
 const OTURUM = "cronbi-efor-anahtar";
+// Anahtar süre verilmemiş (oturum) çerezinde: tarayıcı kapanınca silinir, açıkken tüm sekmeler paylaşır (karar 33). Yol bu sayfayla sınırlı.
+const CEREZ = `; path=${location.pathname.replace(/[^/]*$/, "")}; SameSite=Strict${location.protocol === "https:" ? "; Secure" : ""}`;
+const cerezOku = () => { const m = document.cookie.match(new RegExp(`(?:^|; )${OTURUM}=([^;]*)`)); return m ? decodeURIComponent(m[1]) : null; };
+const cerezYaz = (v) => { document.cookie = `${OTURUM}=${encodeURIComponent(v)}${CEREZ}`; };
+const cerezSil = () => { document.cookie = `${OTURUM}=; max-age=0${CEREZ}`; };
 const b64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
 const yazi = (t) => new TextEncoder().encode(t);
 async function anahtarTuret(kullanici, sifre, tur) {
+  kullanici = kullanici.trim().normalize("NFC"); sifre = sifre.normalize("NFC");
   const tuz = new Uint8Array(await crypto.subtle.digest("SHA-256", yazi(`cronbi-efor-panosu\u0000sayfa\u0000${kullanici}`))).slice(0, 16);
   const ham = await crypto.subtle.importKey("raw", yazi(`${kullanici}\u0000${sifre}`), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: tuz, iterations: tur }, ham, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
@@ -466,14 +477,14 @@ async function coz(paket, anahtar) {
 }
 async function oturumdanAc(paket) {
   let kayit = null;
-  try { kayit = sessionStorage.getItem(OTURUM); } catch (e) {}
+  try { kayit = cerezOku(); } catch (e) {}
   if (!kayit) return false;
   try {
     const anahtar = await crypto.subtle.importKey("raw", b64(kayit), { name: "AES-GCM" }, false, ["decrypt"]);
     baslat(await coz(paket, anahtar));
     return true;
   } catch (e) {
-    try { sessionStorage.removeItem(OTURUM); } catch (e2) {}
+    try { cerezSil(); } catch (e2) {}
     return false;
   }
 }
@@ -491,7 +502,7 @@ async function kilidiAc() {
     try {
       const anahtar = await anahtarTuret($("#g-kullanici").value.trim(), $("#g-sifre").value, paket.tur);
       const veri = await coz(paket, anahtar);
-      try { sessionStorage.setItem(OTURUM, btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("raw", anahtar))))); } catch (e2) {}
+      try { cerezYaz(btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("raw", anahtar))))); } catch (e2) {}
       $("#g-sifre").value = "";
       baslat(veri);
     } catch (e2) {
@@ -515,7 +526,7 @@ $("#tema").onclick = () => {
   try { localStorage.setItem(TEMA, t); } catch (e) {}
   temaYaz();
 };
-$("#cikis").onclick = () => { try { sessionStorage.removeItem(OTURUM); } catch (e) {} location.reload(); };
+$("#cikis").onclick = () => { try { cerezSil(); } catch (e) {} location.reload(); };
 kilidiAc();
 </script>
 </body>
