@@ -26,6 +26,7 @@ __YAZI__
     --bg:#0A1019; --paper:#121A26; --ink:#E5EAF2; --muted:#97A2B4; --rule:#273345; --grid:rgba(229,234,242,.035);
     --wash:#192333; --accent:#8AABFF; --stamp:#FF7A6B;
     --warn:#F2B451; --warn-bg:#3A2B12; --ok:#5ED38E; --toplanti:#9EABBB; --gelistirme:#8AABFF; color-scheme:dark; }
+  :root[data-theme="light"] { color-scheme:light; }
 
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:400 1rem/1.5 var(--body); -webkit-font-smoothing:antialiased; }
@@ -43,7 +44,7 @@ __YAZI__
   .eyebrow { display:flex; flex-wrap:wrap; gap:.25rem .9rem; font:600 .72rem/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:.9rem; }
   h1 { font:800 clamp(3rem, 8.5vw, 6.2rem)/.86 var(--display); font-stretch:66%; letter-spacing:-.01em; margin:0; }
   h1 span { color:var(--muted); font-weight:500; }
-  .tools { display:flex; gap:.5rem; margin-top:1.4rem; }
+  .tools { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.4rem; }
   .tools select, .btn { height:2.4rem; border:1px solid var(--rule); background:var(--paper); border-radius:5px; padding:0 .8rem; cursor:pointer; }
   .btn:hover, .tools select:hover { border-color:var(--ink); }
 
@@ -206,7 +207,9 @@ __YAZI__
   .giris button:disabled { opacity:.6; cursor:progress; }
   .giris .hata { margin:0; min-height:1.2rem; font-size:.85rem; color:var(--warn); }
   .giris .not { margin:0; font-size:.78rem; color:var(--muted); }
-  .btn.cikis { margin-left:auto; color:var(--muted); }
+  .btn.tema { margin-left:auto; display:inline-flex; align-items:center; gap:.45rem; color:var(--muted); }
+  .btn.tema svg { width:.95rem; height:.95rem; }
+  .btn.cikis { color:var(--muted); }
   .bos-ay { padding:2rem; color:var(--muted); border-top:1px solid var(--rule); }
   .bayat { margin:.9rem 0 0; font:500 .8rem/1.4 var(--body); color:var(--warn); }
   .bayat[hidden] { display:none; }
@@ -241,6 +244,7 @@ __YAZI__
             <ul class="dd-list" id="dd-list" role="listbox" aria-label="Ay" tabindex="-1" hidden></ul>
           </div>
           <button class="btn" id="csv" type="button">Excel'e aktar</button>
+          <button class="btn tema" id="tema" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg><span id="tema-lbl"></span></button>
           <button class="btn cikis" id="cikis" type="button" hidden>Çıkış</button>
         </div>
       </div>
@@ -498,6 +502,19 @@ async function kilidiAc() {
     }
   };
 }
+// Seçim yalnız bu tarayıcıda saklanır; seçilmemişse işletim sisteminin teması geçerli
+const TEMA = "cronbi-efor-tema";
+const koyuMu = () => (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark";
+function temaYaz() { $("#tema-lbl").textContent = koyuMu() ? "Açık tema" : "Koyu tema"; }
+try { const t = localStorage.getItem(TEMA); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+temaYaz();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", temaYaz);
+$("#tema").onclick = () => {
+  const t = koyuMu() ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem(TEMA, t); } catch (e) {}
+  temaYaz();
+};
 $("#cikis").onclick = () => { try { sessionStorage.removeItem(OTURUM); } catch (e) {} location.reload(); };
 kilidiAc();
 </script>
