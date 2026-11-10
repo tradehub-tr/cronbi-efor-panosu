@@ -86,9 +86,13 @@ def sifre_yenile(kilitli):
 
 def calis(a):
     simdi = cli._simdi(a.simdi)
-    geciken = hesap.kesinlesecek_aylar(simdi, {p.stem for p in Path(a.kilitli_arsiv).glob("????-??.json")})
+    geciken = hesap.kesinlesecek_aylar(
+        simdi, {p.stem for p in Path(a.kilitli_arsiv).glob("????-??.json")}
+    )
     if a.tetik in EK_TETIKLER and not son_iki_gun(simdi) and not geciken:
-        print("Bugün ayın son iki günü değil, kesinleşmesi geciken ay yok; ek güncelleme yapılmadı.")
+        print(
+            "Bugün ayın son iki günü değil, kesinleşmesi geciken ay yok; ek güncelleme yapılmadı."
+        )
         return 0
     sayfa_anahtari = sifre.anahtar(*_kimlik(), "sayfa")
     arsiv_anahtari = sifre.anahtar(*_kimlik(), "arsiv")

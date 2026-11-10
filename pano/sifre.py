@@ -32,7 +32,9 @@ def _b64(b):
 def _temiz(kullanici, sifre=""):
     """Kullanıcı adının kenar boşluğu silinir; ikisi de NFC'ye çevrilir (Mac'ten kopyalanan "ö" iki parçalı gelebilir).
     Tarayıcı (sablon.html → anahtarTuret) aynısını yapar."""
-    return unicodedata.normalize("NFC", kullanici.strip()), unicodedata.normalize("NFC", sifre)
+    return unicodedata.normalize("NFC", kullanici.strip()), unicodedata.normalize(
+        "NFC", sifre
+    )
 
 
 def tuz(kullanici, amac):
