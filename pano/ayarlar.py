@@ -58,6 +58,9 @@ def _kisiler():
     yerel = Path(__file__).resolve().parents[1] / "kisiler.json"
     if not ham and yerel.exists():
         ham = yerel.read_text(encoding="utf-8")
+    # GitHub'da boş ayarla sürmek dışlananları panoya sokar, ad düzeltmelerini siler; sessiz geçmesin
+    if not ham and os.environ.get("GITHUB_ACTIONS") == "true":
+        raise SystemExit("PANO_KISILER gizli değişkeni iş akışına verilmemiş")
     return json.loads(ham) if ham else {"haric": {}, "ad": {}}
 
 

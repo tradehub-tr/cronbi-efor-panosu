@@ -177,5 +177,21 @@ class KilitliSayfa(unittest.TestCase):
         self.assertIn("data:font/woff2;base64,", html)
 
 
+class IsAkisi(unittest.TestCase):
+    """İlk canlı çalışmada PANO_KISILER iş akışına verilmemişti; dışlama ve ad düzeltmesi sessizce düştü."""
+
+    def test_kodun_okudugu_her_gizli_degisken_is_akisina_verilir(self):
+        akis = Path(".github/workflows/pano.yml").read_text(encoding="utf-8")
+        for ad in ("PLANE_API_KEY", "PANO_KULLANICI", "PANO_SIFRE", "PANO_KISILER"):
+            self.assertIn(f"{ad}: ${{{{ secrets.{ad} }}}}", akis)
+
+    def test_githubda_kisi_ayari_yoksa_durur(self):
+        from pano import ayarlar
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}, clear=True), \
+                mock.patch.object(ayarlar.Path, "exists", return_value=False):
+            with self.assertRaises(SystemExit):
+                ayarlar._kisiler()
+
+
 if __name__ == "__main__":
     unittest.main()

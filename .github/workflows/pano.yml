@@ -51,6 +51,7 @@ jobs:
           PLANE_API_KEY: ${{ secrets.PLANE_API_KEY }}
           PANO_KULLANICI: ${{ secrets.PANO_KULLANICI }}
           PANO_SIFRE: ${{ secrets.PANO_SIFRE }}
+          PANO_KISILER: ${{ secrets.PANO_KISILER }}
         run: python -m pano.yayin --kilitli-arsiv arsiv-dali/aylar --site site --tetik "${{ github.event.schedule }}"
 
       - name: Yeni kesinleşen ayı arşive yaz
