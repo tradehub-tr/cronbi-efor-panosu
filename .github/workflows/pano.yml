@@ -3,6 +3,8 @@
 # Ek çalışmalar 1'inde ve 27–31'inde başlar; ayın son iki günü değilse ve kesinleşmesi geciken ay yoksa
 # pano.yayin hiçbir şey yapmadan biter (1'i 00:30 düşerse aynı gün 12:00 ve 17:30'da yeniden dener).
 # Günlük herkese açıktır: betik kişi adı ve gün yazdırmaz (--sessiz).
+# Yayın ayrı işte ve bir kez yeniden dener: 24 Kas 2026'da deploy-pages, 250 ms önce yüklenen paketi
+# listede henüz göremedi ("No artifacts named github-pages"); paket sonradan oradaydı.
 name: Ekip puantajı
 
 on:
@@ -11,6 +13,11 @@ on:
     - cron: "0 9 1,27-31 * *"
     - cron: "30 14 1,27-31 * *"
   workflow_dispatch:
+    inputs:
+      yeniden_deneme_sina:
+        description: "İlk yayın denemesini bilerek düşür (yeniden deneme yolunu sınamak için)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # arsiv dalına kesinleşen ayı yazmak için
@@ -22,12 +29,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  yayin:
+  yapim:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: github-pages
-      url: ${{ steps.dagit.outputs.page_url }}
+    outputs:
+      yayin: ${{ steps.var.outputs.yayin }}
     steps:
       - uses: actions/checkout@v4
 
@@ -72,6 +78,26 @@ jobs:
         with:
           path: site
 
-      - if: steps.var.outputs.yayin == 'evet'
-        id: dagit
+  yayin:
+    needs: yapim
+    if: needs.yapim.outputs.yayin == 'evet'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.dagit.outputs.page_url || steps.dagit2.outputs.page_url }}
+    steps:
+      - id: dagit
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ inputs.yeniden_deneme_sina && 'sinama-yok' || 'github-pages' }}
+
+      - if: steps.dagit.outcome == 'failure'
+        run: |
+          echo "İlk yayın denemesi düştü; 30 sn sonra yeniden deneniyor"
+          sleep 30
+
+      - if: steps.dagit.outcome == 'failure'
+        id: dagit2
         uses: actions/deploy-pages@v4

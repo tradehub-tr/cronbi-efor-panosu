@@ -228,6 +228,20 @@ class IsAkisi(unittest.TestCase):
         for c in takvim:
             self.assertEqual(c.split()[2], "1,27-31")
 
+    def test_yayin_ayri_iste_ve_bir_kez_yeniden_dener(self):
+        # 24 Kas 2026: aynı işte 250 ms önce yüklenen paket listede görünmedi, deploy-pages düştü
+        akis = Path(".github/workflows/pano.yml").read_text(encoding="utf-8")
+        yapim, ayrac, yayin_isi = akis.partition("\n  yayin:\n")
+        self.assertTrue(ayrac)
+        self.assertIn("uses: actions/upload-pages-artifact", yapim)
+        self.assertNotIn("uses: actions/deploy-pages", yapim)
+        self.assertIn("needs: yapim", yayin_isi)
+        self.assertEqual(yayin_isi.count("uses: actions/deploy-pages"), 2)
+        ilk, _, ikinci = yayin_isi.partition("id: dagit2")
+        self.assertIn("continue-on-error: true", ilk)
+        self.assertIn("|| 'github-pages'", ilk)  # zamanlanmış koşuda sınama girdisi boş
+        self.assertNotIn("continue-on-error", ikinci)  # ikisi de düşerse iş kırmızı
+
     def test_veri_hatasi_herkese_acik_gunluge_gorev_kodu_yazmaz(self):
         with tempfile.TemporaryDirectory() as t:
             c = Path(t, "c.json")
