@@ -8,7 +8,7 @@ Yönetici her ayın 1'i sabahı tek adresten, kullanıcı adı ve şifreyle giri
 - **Her gece 00:30** (İstanbul) Plane'den görevler okunur, sayfa yeniden üretilir. Ayın **son 2 günü** 12:00 ve 17:30'da da güncellenir.
 - **Ayın 1'i 00:30'da** geçen ay kesinleşir; kesinleşen ay bir daha değişmez.
 - Bir görev atandığı herkese tam süresiyle sayılır. Ay: Done değilse sayılmaz → bitiş tarihinin ayı → bitiş yoksa Done'a çekildiği gün.
-- Süre boy etiketinden (XS 3 saat · SM 6,5 saat · MD 1,5 gün · LG 2,5 gün · XL 3,5 gün) ya da toplantı gün etiketinden (T1–T4) gelir; ikisi de yoksa görev listede görünür, toplama girmez.
+- Süre boy etiketinden (XS 3 saat · SM 6,5 saat · MD 1,5 gün · LG 2,5 gün · XL 3,5 gün) ya da toplantı gün etiketinden (T1–T5, sırasıyla 1–5 gün) gelir; ikisi de yoksa görev listede görünür, toplama girmez.
 
 ## Güvenlik
 

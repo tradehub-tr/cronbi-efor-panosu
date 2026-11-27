@@ -3,7 +3,7 @@
 Kurallar (görev klasörü KARARLAR.md):
   • kime: atanan herkese tam süre (1), dışlanan hesaplar hariç (14); kişi Plane üye kimliğiyle tutulur
   • hangi ay: Done değilse yok → bitiş tarihinin ayı → yoksa Done'a çekildiği günün ayı, İstanbul saatiyle (2)
-  • ne kadar: gün etiketi (T1–T4) → boy etiketi (XS–XL) → yoksa süre boş, toplama girmez (3, 16, 20, 23)
+  • ne kadar: gün etiketi (T1–T5) → boy etiketi (XS–XL) → yoksa süre boş, toplama girmez (3, 16, 20, 23)
   • geç kapanan: kesinleşmiş bir aya ait olup orada sayılmamış iş, açık olan aya sayılır (12, 15)
   • tek ödeme: kesinleşmiş bir ayda sayılmış iş donar; kimseye bir daha sayılmaz (4, 26)
 """

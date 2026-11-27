@@ -198,6 +198,16 @@ class Sure(unittest.TestCase):
             1,
         )
 
+    def test_t5_bes_gun_toplanti_sayilir(self):
+        k = kayit(310, etiket=["SM", "T5"], bit="2026-11-09")
+
+        d = dokum(k)
+
+        self.assertEqual(efor(d, "u-ayse"), Decimal(5))
+        (satir,) = d["kisiler"]["u-ayse"]["sayilan"]
+        self.assertEqual(satir["etiket"], "T5")
+        self.assertTrue(satir["toplanti"])
+
     def test_boylu_toplanti_boyla_sayilir_boysuz_bos(self):  # (16)
         d = dokum(
             kayit(34, etiket=["toplantı", "MD"], bit="2026-11-09"),

@@ -207,8 +207,10 @@ class SureTablosu(unittest.TestCase):  # (3, 20, 31)
         self.assertEqual(t["SM"], ("6,5 saat", "0,8125"))
         self.assertEqual(t["LG"], ("2,5 gün", "2,5"))
         self.assertEqual(t["T2"], ("2 gün", "2"))
+        self.assertEqual(t["T4"], ("4 gün", "4"))
+        self.assertEqual(t["T5"], ("5 gün", "5"))
         self.assertEqual(
-            list(t), ["XS", "SM", "MD", "LG", "XL", "T1", "T2", "T3", "T4"]
+            list(t), ["XS", "SM", "MD", "LG", "XL", "T1", "T2", "T3", "T4", "T5"]
         )
 
 

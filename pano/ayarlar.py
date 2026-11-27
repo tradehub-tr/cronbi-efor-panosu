@@ -43,6 +43,7 @@ GUN_ETIKETI = {
     "T2": Decimal(2),
     "T3": Decimal(3),
     "T4": Decimal(4),
+    "T5": Decimal(5),
 }
 
 # Bu etiketlerden biri ya da bir gün etiketi taşıyan görev "Toplantı" sınıfındadır (karar 22).
